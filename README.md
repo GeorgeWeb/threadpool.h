@@ -10,7 +10,7 @@ A very simple ***single-header*** C++17 implementation of a thread-pool
 #include <iostream>
 
 auto main() -> int {
- // construct a default thread pool object
+  // construct a default thread pool object
   tpool::thread_pool_safe pool{};
   
   // or you can go with the faster `tpool::thread_pool_std`, depending on 
