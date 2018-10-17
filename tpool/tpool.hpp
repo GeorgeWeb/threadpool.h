@@ -198,16 +198,14 @@ namespace detail {
 template <typename T>
 class queue {
  public:
-  void push(T value)
-  {
+  void push(T value) {
     std::lock_guard<std::mutex> lock(_mutex);
     _queue.push(value);
     _condition.notify_one();
   }
 
   // deletes the retrieved element, and returns the front value safely
-  std::shared_ptr<T> pop()
-  {
+  std::shared_ptr<T> pop() {
     std::unique_lock<std::mutex> lock(_mutex);
     _condition.wait(lock, [this]{ return !_queue.empty(); });
     auto value = std::make_shared<T>(_queue.front());

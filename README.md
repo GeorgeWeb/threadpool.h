@@ -51,7 +51,7 @@ auto main() -> int {
 ---
 
 ### Compilation
-#### Linux
+#### Linux / macOS
 **gcc**
 ```
 g++ -std=c++17 -pthread example.cpp -o example
