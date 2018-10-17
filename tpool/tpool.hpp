@@ -1,5 +1,25 @@
-/** Author: Georgi Mirazchiyski
- * NO LICENSE, USE AS YOU WISH!
+/** @AUTHOR: 
+  * Georgi Mirazchiyski
+  * ===
+  * @LICENSE: 
+  * NO LICENSE, USE AS YOU WISH!
+  * ===
+  * @DATE
+  * October 17, 2018
+  * ===
+  * @DESCPRITION:
+  * A very simple C++17 implementation of a thread-pool,
+  * creates a pool of a specific number of threads, that
+  * is useful for certain sitations but lacks optimisations,
+  * such as dynamic resizing of the vector of threads, when
+  * we may need more of them, or may not need as much as
+  * we have allocated initially on construction.
+  * ---
+  * TODO: This limitation needs tackled in the near future.
+  * ---
+  * NOTE: It is my first implementation of a thread-pool as well as
+  * first exposure to the topic which explains the naive approach here.
+  * On the other hand, it simple to read and does the job for trivial cases.
  **/
 #ifndef TPOOL_HPP_
 #define TPOOL_HPP_
@@ -13,58 +33,6 @@
 #include <queue>
 
 namespace tpool {
-
-namespace detail {
-/** A very basic (and naive) implementation of a thead-safe,
-  * lock-based queue container, based on the `std::queue` container
-  * The justification of this arguable implementation approach
-  * is based on the fact that there won't be a possibility
-  * for a deadlock (or livelock with our thread-pool system,
-  * because of the nature of its implementation.
- **/
-template <typename T>
-class queue {
- public:
-  void push(T value)
-  {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _queue.push(value);
-    _condition.notify_one();
-  }
-
-  // deletes the retrieved element, and returns the front value safely
-  std::shared_ptr<T> pop()
-  {
-    std::unique_lock<std::mutex> lock(_mutex);
-    _condition.wait(lock, [this]{ return !_queue.empty(); });
-    auto value = std::make_shared<T>(_queue.front());
-    _queue.pop();
-    return value;
-  }
-
-  bool empty() const {
-    std::unique_lock<std::mutex> lock(_mutex);
-    return _queue.empty();
-  }
-
- private:
-  std::queue<T> _queue;
-  mutable std::mutex _mutex;
-  std::condition_variable _condition;
-};
-} // namespace detail
-
-/** A very simple C++14 implementation of a thread-pool,
-  * creates a pool of a specific number of threads, that
-  * is useful for certain sitations but lacks optimisations,
-  * such as dynamic resizing of the vector of threads, when
-  * we may need more of them, or may not need as much as
-  * we have allocated initially on construction.
-  * Promise: This limitation will be tackled in the near future.
-  * Note: It is my first implementation of a thread-pool as well as
-  * first exposure to the topic which explains the naive approach here.
-  * On the other hand, it simple to read and does the job for trivial cases.
- **/ 
 
 // forward delcaration of the class interface
 template <typename T>
@@ -92,32 +60,34 @@ class thread_pool {
   inline auto& getUnderlying() { return static_cast<T&>(*this); }
 };
 
+namespace std_queue {
+
 // implementation using the standard STL queue container for the tasks
-class thread_pool_std : public thread_pool<thread_pool_std> {
+class thread_pool : public tpool::thread_pool<tpool::std_queue::thread_pool> {
  using task_t = std::function<void()>;
 
  public:
   // constuctor with a default number of threads, dependending on your CPU's cores number
-  thread_pool_std() {
-    const auto num_threads = 8;//std::thread::hardware_concurrency();
+  thread_pool() {
+    const auto num_threads = std::thread::hardware_concurrency();
     start(num_threads);
   }
  
   // constuctor with custom number of threads, dependending on your CPU's cores number
-  explicit thread_pool_std(size_t num_threads) {
+  explicit thread_pool(size_t num_threads) {
     start(num_threads); 
   }
  
-  ~thread_pool_std() {
+  ~thread_pool() {
     stop();
   }
   
   // following the rule of 5, delete the other constructors 
   // and their corresponding operator overloads
-  thread_pool_std(const thread_pool_std &) = delete;
-  thread_pool_std(thread_pool_std &&) = delete;
-  thread_pool_std &operator=(const thread_pool_std &) = delete;
-  thread_pool_std &operator=(thread_pool_std &&) = delete; 
+  thread_pool(const thread_pool &) = delete;
+  thread_pool(thread_pool &&) = delete;
+  thread_pool &operator=(const thread_pool &) = delete;
+  thread_pool &operator=(thread_pool &&) = delete; 
  
   // gets the number of threads in the pool
   size_t count() const noexcept {
@@ -193,7 +163,9 @@ private:
     
     // finalise the all threads in the pool
     for (auto &thread : _threads) {
-      thread.join();
+      if(thread.joinable()) {
+        thread.join();
+      }
     }
   }
   
@@ -210,32 +182,79 @@ private:
   std::queue<task_t> _tasks;
 };
 
+} // namespace standard_queue
+
+namespace safe_queue {
+
+namespace detail {
+
+/** A very basic (and naive) implementation of a thead-safe,
+  * lock-based queue container, based on the `std::queue` container
+  * The justification of this arguable implementation approach
+  * is based on the fact that there won't be a possibility
+  * for a deadlock (or livelock with our thread-pool system,
+  * because of the nature of its implementation.
+ **/
+template <typename T>
+class queue {
+ public:
+  void push(T value)
+  {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _queue.push(value);
+    _condition.notify_one();
+  }
+
+  // deletes the retrieved element, and returns the front value safely
+  std::shared_ptr<T> pop()
+  {
+    std::unique_lock<std::mutex> lock(_mutex);
+    _condition.wait(lock, [this]{ return !_queue.empty(); });
+    auto value = std::make_shared<T>(_queue.front());
+    _queue.pop();
+    return value;
+  }
+
+  bool empty() const {
+    std::unique_lock<std::mutex> lock(_mutex);
+    return _queue.empty();
+  }
+
+ private:
+  std::queue<T> _queue;
+  mutable std::mutex _mutex;
+  std::condition_variable _condition;
+};
+
+} // namespace detail
+
+
 // implementation using a custom thread-safe queue container for the tasks
-class thread_pool_safe : public thread_pool<thread_pool_safe> {
+class thread_pool : public tpool::thread_pool<tpool::safe_queue::thread_pool> {
  using task_t = std::function<void()>;
 
  public:
   // constuctor with a default number of threads, dependending on your CPU's cores number
-  thread_pool_safe() {
-    const auto num_threads = 8;//std::thread::hardware_concurrency();
+  thread_pool() {
+    const auto num_threads = std::thread::hardware_concurrency();
     start(num_threads);
   }
  
   // constuctor with custom number of threads, dependending on your CPU's cores number
-  explicit thread_pool_safe(size_t num_threads) {
+  explicit thread_pool(size_t num_threads) {
     start(num_threads); 
   }
  
-  ~thread_pool_safe() {
+  ~thread_pool() {
     stop();
   }
   
   // following the rule of 5, delete the other constructors 
   // and their corresponding operator overloads
-  thread_pool_safe(const thread_pool_safe &) = delete;
-  thread_pool_safe(thread_pool_safe &&) = delete;
-  thread_pool_safe &operator=(const thread_pool_safe &) = delete;
-  thread_pool_safe &operator=(thread_pool_safe &&) = delete; 
+  thread_pool(const thread_pool &) = delete;
+  thread_pool(thread_pool &&) = delete;
+  thread_pool &operator=(const thread_pool &) = delete;
+  thread_pool &operator=(thread_pool &&) = delete;
  
   // gets the number of threads in the pool
   size_t count() const noexcept {
@@ -245,19 +264,15 @@ class thread_pool_safe : public thread_pool<thread_pool_safe> {
   template <typename T>
   auto enqueue(T task) -> std::future<decltype(task())> {
     /** wrapper to the task,
-      * where `packaged_task` is the container for the task function/functor,
+      * where `packaged_task` is the container for the task (std::function) and returns std::future
       * using `shared_ptr`, because the wrapper is shared between tasks inside the thread pool
      **/
     auto wrapper = std::make_shared<std::packaged_task<decltype(task()) ()>>(std::move(task));
 
-    /** scoped lock
-     * safely associate a task to an available thread in the pool
-     **/
-    {
-      std::unique_lock<std::mutex> lock(_mutex);
-      auto func = std::function<void()>([=]() { (*wrapper)(); });
-      _tasks.push(std::move(func));
-    }
+    // wrap the packaged task into void function
+    auto func = std::function<void()>([=]() { (*wrapper)(); });
+     // enqueue the function
+    _tasks.push(std::move(func));
 
     // notify an available thread 
     _event.notify_one();
@@ -299,19 +314,21 @@ private:
 
   void stop() noexcept {
     /** scoped lock
-      * safely set the threading mechanism to stop an release the lock on scope exit
+     * safely set the threading mechanism to stop an release the lock on scope exit
      **/
     {
       std::unique_lock<std::mutex> lock(_mutex);
       _stopping = true;
     }
-   
+
     // stop all waiting threads
     _event.notify_all();
     
     // finalise the all threads in the pool
     for (auto &thread : _threads) {
-      thread.join();
+      if(thread.joinable()) {
+        thread.join();
+      }
     }
   }
   
@@ -327,6 +344,8 @@ private:
   // the tasks container
   detail::queue<task_t> _tasks; 
 };
+
+} // namespace safe_queue
 
 } // namespace tpool
 
