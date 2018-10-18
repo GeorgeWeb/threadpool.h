@@ -49,7 +49,8 @@ auto main() -> int {
   
   /* Step 3: Use the outputs from the tasks that were executed within the thread-pool */
 
-  // the return values from the enqueued lambdas are futures, thus use std::future::get() to retrieve them
+  // the return values from the enqueued lambdas are futures, 
+  // so we need to use std::future::get() to retrieve them
   const auto result_foo = foo.get();
   const auto result_bar = bar.get();
   std::cout << "Calculation 1: " << result_foo << std::endl;
@@ -58,6 +59,13 @@ auto main() -> int {
 
   return 0;
 }
+```
+
+**Output**
+```
+Calculation 1: 24.5
+Calculation 2: 35.5
+Added together: 60
 ```
 
 ---
