@@ -6,7 +6,7 @@
 #include "tpool/tpool.hpp"
 #include <iostream>
 
-float calculate(float value, int scalar) {
+constexpr float calculate(float value, int scalar) {
   return value * static_cast<float>(scalar);
 }
 
@@ -40,8 +40,8 @@ auto main() -> int {
   /* Step 3: Use the outputs from the tasks that were executed within the thread-pool */
 
   // the return values from the enqueued lambdas are futures, thus use std::future::get() to retrieve them
-  auto result_foo = foo.get();
-  auto result_bar = bar.get();
+  const auto result_foo = foo.get();
+  const auto result_bar = bar.get();
   std::cout << "Calculation 1: " << result_foo << std::endl;
   std::cout << "Calculation 2: " << result_bar << std::endl;
   std::cout << "Added together: " << result_foo + result_bar << std::endl;
