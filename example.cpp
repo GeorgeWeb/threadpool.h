@@ -1,11 +1,15 @@
-#include "tpool/tpool.hpp"
-
-#include <iostream>
-
 /** This is a 3-step program example that showcases the use of the `tpool` library,
   * and while this is a very simple case, it can be used in a similar way for a
   * in more complex scenarios with multiple iterations over certain tasks
  **/
+
+#include "tpool/tpool.hpp"
+#include <iostream>
+
+float calculate(float value, int scalar) {
+  return value * static_cast<float>(scalar);
+}
+
 auto main() -> int {
   /* Step 1: Construct a default thread pool object */
   
@@ -21,21 +25,26 @@ auto main() -> int {
 
   /* Step 2: Set variables to be used in the functions passed to the pool */
 
-  constexpr auto num1 = 12.25f;
-  constexpr auto num2 = 17.75f;
-  
+  constexpr float num1 = 12.25f;
+  constexpr float num2 = 17.75f;
+  constexpr int scalar = 2;
+
   /* Submit tasks to the thread-pool */
 
   // enqueue lambdas to the pool which will give them a thread if there's any unused threads left
   // there sure are enough, unless you're running on a single-core CPU, where 
   // a default pool construction might create a pool of only 1 thread
-  auto func1 = pool.enqueue([num1] { return num1; });
-  auto func2 = pool.enqueue([num2] { return num2; });
+  auto foo = pool.enqueue([num1] { return num1 * static_cast<float>(scalar); });
+  auto bar = pool.enqueue(calculate, num2, scalar);
   
   /* Step 3: Use the outputs from the tasks that were executed within the thread-pool */
 
   // the return values from the enqueued lambdas are futures, thus use std::future::get() to retrieve them
-  std::cout << "Result: " << func1.get() + func2.get() << std::endl;
+  auto result_foo = foo.get();
+  auto result_bar = bar.get();
+  std::cout << "Calculation 1: " << result_foo << std::endl;
+  std::cout << "Calculation 2: " << result_bar << std::endl;
+  std::cout << "Added together: " << result_foo + result_bar << std::endl;
 
   return 0;
 }
