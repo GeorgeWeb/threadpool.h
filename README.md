@@ -13,7 +13,7 @@ A very simple ***single-header*** C++17 implementation of a thread-pool
 #include "path/to/tpool.hpp"
 #include <iostream>
 
-float calculate(float value, int scalar) {
+constexpr float calculate(float value, int scalar) {
   return value * static_cast<float>(scalar);
 }
 
@@ -23,12 +23,15 @@ auto main() -> int {
   // Option 1:
   // implementation with manual (in-place) std::queue::push/pop synchronisation
   // the slighly faster version, which is also considerably safe for most trivial cases
-  // tpool::std_queue::thread_pool pool{};
+  // code: tpool::std_queue::thread_pool pool{/* number of threads, or leave empty */};
   
   // Option 2:
   // implementation with a thread-safe queue, internally composed of std::queue
   // the slightly safer version, for cases where we need to double-ensue correct ordering
-  tpool::safe_queue::thread_pool pool{};
+  // code: tpool::safe_queue::thread_pool pool{/* number of threads, or leave empty */};
+
+  // let's go with the first option for this case:
+  tpool::std_queue::thread_pool pool{2};
 
   /* Step 2: Set variables to be used in the functions passed to the pool */
 
@@ -47,8 +50,8 @@ auto main() -> int {
   /* Step 3: Use the outputs from the tasks that were executed within the thread-pool */
 
   // the return values from the enqueued lambdas are futures, thus use std::future::get() to retrieve them
-  auto result_foo = foo.get();
-  auto result_bar = bar.get();
+  const auto result_foo = foo.get();
+  const auto result_bar = bar.get();
   std::cout << "Calculation 1: " << result_foo << std::endl;
   std::cout << "Calculation 2: " << result_bar << std::endl;
   std::cout << "Added together: " << result_foo + result_bar << std::endl;
