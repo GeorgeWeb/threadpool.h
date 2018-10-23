@@ -31,6 +31,7 @@
 #include <functional>
 #include <vector>
 #include <queue>
+#include <algorithm>
 
 namespace tpool {
 
@@ -64,12 +65,12 @@ namespace std_queue {
 
 // implementation using the standard STL queue container for the tasks
 class thread_pool : public tpool::thread_pool<tpool::std_queue::thread_pool> {
- using task_t = std::function<void()>;
-
+  using task_t = std::function<void()>;
+  
  public:
   // constuctor with a default number of threads, dependending on your CPU's cores number
   thread_pool() {
-    const auto num_threads = std::thread::hardware_concurrency();
+    const auto num_threads{std::max(std::thread::hardware_concurrency(), 2u) - 1u};
     start(num_threads);
   }
  
@@ -118,7 +119,7 @@ class thread_pool : public tpool::thread_pool<tpool::std_queue::thread_pool> {
     return wrapper->get_future();
   }
 
-private:
+ private:
   /* Internal Member Functions */
 
   void start(size_t num_threads) {
@@ -231,12 +232,12 @@ class queue {
 
 // implementation using a custom thread-safe queue container for the tasks
 class thread_pool : public tpool::thread_pool<tpool::safe_queue::thread_pool> {
- using task_t = std::function<void()>;
+  using task_t = std::function<void()>;
 
  public:
   // constuctor with a default number of threads, dependending on your CPU's cores number
   thread_pool() {
-    const auto num_threads = std::thread::hardware_concurrency();
+    const auto num_threads{std::max(std::thread::hardware_concurrency(), 2u) - 1u};
     start(num_threads);
   }
  
@@ -349,3 +350,4 @@ private:
 } // namespace tpool
 
 #endif // TPOOL_HPP_
+

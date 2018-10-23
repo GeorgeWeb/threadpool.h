@@ -3,7 +3,22 @@ A very simple ***single-header*** C++17 implementation of a thread-pool
 
 ---
 
-### Usage
+### Compilation
+#### Linux / macOS
+**gcc**
+```
+g++ -std=c++17 -pthread example.cpp -o example
+```
+**clang**
+```
+clang++ -std=c++17 -pthread example.cpp -o example
+```
+#### Windows
+**Visual Studio 2017** with enabled multi-threading
+
+---
+
+### Usage 1
 ```cpp
 /** This is a 3-step program example that showcases the use of the `tpool` library,
   * and while this is a very simple case, it can be used in a similar way for a
@@ -31,7 +46,7 @@ auto main() -> int {
   // code: tpool::safe_queue::thread_pool pool{/* number of threads, or leave empty */};
 
   // let's go with the first option for this case:
-  tpool::std_queue::thread_pool pool{2};
+  tpool::std_queue::thread_pool pool{};
 
   /* Step 2: Set variables to be used in the functions passed to the pool */
 
@@ -70,15 +85,46 @@ Added together: 60
 
 ---
 
-### Compilation
-#### Linux / macOS
-**gcc**
+### Usage 2
+```cpp
+/** This is a 3-step program example that showcases the use of the `tpool` library,
+  * and while this is a very simple case, it can be used in a similar way for a
+  * in more complex scenarios with multiple iterations over certain tasks
+ **/
+
+#include "path/to/tpool.hpp"
+#include <iostream>
+#include <chrono>
+
+auto main () -> int {
+  using namespace std;
+  using namespace chrono;
+  
+  constexpr auto iters = 21u;
+
+  auto start = high_resolution_clock::now();
+
+  vector<future<void>> items;
+  for(auto i = 0u; i < iters; ++i)
+  {
+      auto job = pool->enqueue([] {
+          this_thread::sleep_for(std::chrono::seconds(1));
+      });
+      items.push_back(move(job));
+  }
+  for(auto &item : items) {
+      item.get();
+  }
+  auto end = high_resolution_clock::now();
+  duration<double, milli> diff = end - start;
+  cout << "Avg task-time: " << diff.count() << " milliseconds\n";
+
+  return 0;
+}
 ```
-g++ -std=c++17 -pthread example.cpp -o example
+
+**Output**
 ```
-**clang**
+TODO: Add program output.
 ```
-clang++ -std=c++17 -pthread example.cpp -o example
-```
-#### Windows
-**Visual Studio 2017** with enabled multi-threading
+
